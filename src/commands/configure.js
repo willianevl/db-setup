@@ -1,8 +1,39 @@
 import inquirer from 'inquirer';
-import { existsSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { readConfig, writeConfig, expandPath, compressPath } from '../config.js';
 import { FRAMEWORK_CHOICES, FRAMEWORKS } from '../frameworks.js';
+
+const KNEXFILE_NAMES = ['knexfile.js', 'knexfile.ts', 'knexfile.cjs', 'knexfile.mjs'];
+
+function detectEnvVarsFromKnexfile(projectPath) {
+  let content = null;
+  for (const name of KNEXFILE_NAMES) {
+    const p = join(projectPath, name);
+    if (existsSync(p)) { content = readFileSync(p, 'utf8'); break; }
+  }
+  if (!content) return null;
+
+  const refs = [...content.matchAll(/process\.env\.(\w+)/g)].map(m => m[1]);
+  const result = {};
+  for (const ref of refs) {
+    const lower = ref.toLowerCase();
+    if (!result.password && (lower.includes('password') || lower.includes('_pwd'))) {
+      result.password = ref;
+    } else if (!result.user && lower.includes('user') && !lower.includes('password')) {
+      result.user = ref;
+    } else if (!result.host && lower.includes('write_host')) {
+      result.host = ref;
+    } else if (!result.host && lower.includes('host') && !lower.includes('read')) {
+      result.host = ref;
+    } else if (!result.port && lower.includes('port')) {
+      result.port = ref;
+    } else if (!result.name && (lower.includes('database') || lower.includes('db_name'))) {
+      result.name = ref;
+    }
+  }
+  return Object.keys(result).length > 0 ? result : null;
+}
 
 const BRANCH_DEFAULTS = { dev: 'development', hlg: 'staging', prod: 'main' };
 
@@ -129,14 +160,19 @@ export async function configureCommand(opts) {
     }))
   );
 
-  console.log('\nEnvironment variable names (from the project .env file):');
-  const ENV_VAR_DEFAULTS = { host: 'DB_HOST', port: 'DB_PORT', name: 'DB_DATABASE', user: 'DB_USER', password: 'DB_PASSWORD' };
+  const FALLBACK_ENV_VAR_DEFAULTS = { host: 'DB_HOST', port: 'DB_PORT', name: 'DB_DATABASE', user: 'DB_USER', password: 'DB_PASSWORD' };
+  const detected = framework === 'knex' ? detectEnvVarsFromKnexfile(projectPath) : null;
+  if (detected) {
+    console.log('\nEnvironment variable names (auto-detected from knexfile):');
+  } else {
+    console.log('\nEnvironment variable names (from the project .env file):');
+  }
   const envVarAnswers = await inquirer.prompt(
-    Object.entries(ENV_VAR_DEFAULTS).map(([key, defaultVar]) => ({
+    Object.entries(FALLBACK_ENV_VAR_DEFAULTS).map(([key, defaultVar]) => ({
       type: 'input',
       name: key,
       message: `  ${key}:`,
-      default: defaults.envVars?.[key] ?? defaultVar,
+      default: defaults.envVars?.[key] ?? detected?.[key] ?? defaultVar,
       validate: (v) => v.trim() !== '' || 'Variable name cannot be empty.',
       filter: (v) => v.trim(),
     }))

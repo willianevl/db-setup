@@ -1,5 +1,5 @@
 import { execSync } from 'child_process';
-import { existsSync, mkdirSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
 import { config as dotenvConfig } from 'dotenv';
@@ -9,6 +9,34 @@ import { gitPrepare, gitRestore, checkBranchExists } from '../git.js';
 import { dropAndCreateDatabase } from '../db.js';
 
 const FIXED_ENVS = ['dev', 'hlg', 'prod'];
+
+const KNEXFILE_NAMES = ['knexfile.js', 'knexfile.ts', 'knexfile.cjs', 'knexfile.mjs'];
+
+function fillMissingKnexEnvVars(projectDir, creds) {
+  let content = null;
+  for (const name of KNEXFILE_NAMES) {
+    const p = join(projectDir, name);
+    if (existsSync(p)) { content = readFileSync(p, 'utf8'); break; }
+  }
+  if (!content) return;
+
+  const refs = [...content.matchAll(/process\.env\.(\w+)/g)].map(m => m[1]);
+  for (const ref of refs) {
+    if (process.env[ref] !== undefined) continue;
+    const lower = ref.toLowerCase();
+    if (lower.includes('password') || lower.includes('_pwd')) {
+      process.env[ref] = creds.password;
+    } else if (lower.includes('user') && !lower.includes('password')) {
+      process.env[ref] = creds.user;
+    } else if (lower.includes('write_host') || (lower.includes('host') && !lower.includes('read'))) {
+      process.env[ref] = creds.host;
+    } else if (lower.includes('port')) {
+      process.env[ref] = String(creds.port);
+    } else if (lower.includes('database') || lower.includes('db_name')) {
+      process.env[ref] = creds.database;
+    }
+  }
+}
 
 async function resolveEnvOrBranch(envInput, project, projectDir, dryRun) {
   if (FIXED_ENVS.includes(envInput)) {
@@ -170,6 +198,8 @@ export async function runCommand(projectArg, envArg, opts) {
   try {
     const creds = loadCredentials(project, projectDir);
     const dbType = project.dbType ?? 'postgres';
+
+    if (project.framework === 'knex') fillMissingKnexEnvVars(projectDir, creds);
 
     console.log('\n======================================================');
     console.log(`  ${'Project:'.padEnd(14)} ${projectName}`);
