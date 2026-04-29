@@ -1,9 +1,9 @@
 {
-  "name": "db-setup",
+  "name": "@willianevl/dbsetup",
   "version": "0.1.0",
   "description": "CLI to drop, recreate, migrate and seed databases — configurable per project and framework",
   "bin": {
-    "db-setup": "./bin/db-setup.js"
+    "dbsetup": "./bin/db-setup.js"
   },
   "type": "module",
   "dependencies": {

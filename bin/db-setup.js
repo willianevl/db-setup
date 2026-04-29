@@ -7,7 +7,7 @@ import { removeCommand } from '../src/commands/remove.js';
 import { infoCommand } from '../src/commands/info.js';
 
 program
-  .name('db-setup')
+  .name('dbsetup')
   .description('Drop, recreate, migrate and seed a configured project database')
   .version('0.1.0');
 
@@ -34,9 +34,9 @@ program
   .action(removeCommand);
 
 // Default command — supports both:
-//   db-setup run myapp dev
-//   db-setup myapp dev
-//   db-setup myapp feature/my-branch
+//   dbsetup run myapp dev
+//   dbsetup myapp dev
+//   dbsetup myapp feature/my-branch
 program
   .command('run [project] [env]', { isDefault: true })
   .description('Drop, recreate, migrate and seed a project database')
