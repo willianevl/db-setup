@@ -1,0 +1,21 @@
+{
+  "name": "db-setup",
+  "version": "0.1.0",
+  "description": "CLI to drop, recreate, migrate and seed databases — configurable per project and framework",
+  "bin": {
+    "db-setup": "./bin/db-setup.js"
+  },
+  "type": "module",
+  "dependencies": {
+    "commander": "^12.1.0",
+    "inquirer": "^9.3.7",
+    "pg": "^8.13.3",
+    "dotenv": "^16.4.7",
+    "mysql2": "^3.11.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "license": "MIT",
+  "keywords": ["database", "migrations", "cli", "dev-tools", "knex", "prisma"]
+}
